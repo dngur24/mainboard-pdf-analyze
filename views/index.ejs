@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motherboard PCIe Lane Sharing Info</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AMD Motherboard PCIe Checker</h1>
+      <p class="subtitle">메인보드 모델을 선택하여 PCIe 레인 공유 내역을 확인하세요.</p>
+    </header>
+
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="메인보드 모델명 검색 (예: B650, Strix...)" onkeyup="filterBoards()">
+    </div>
+
+    <div class="mb-grid" id="mb-grid">
+      <% boards.forEach(board => { %>
+        <a href="/motherboard/<%= board.id %>" class="mb-card" data-name="<%= board.name.toLowerCase() %>">
+          <span class="chipset-badge"><%= board.chipset %></span>
+          <h2><%= board.name %></h2>
+          <p class="subtitle"><%= board.slots.length %> PCIe Slots / <%= board.storage.length %> M.2 Slots</p>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+
+  <script>
+    function filterBoards() {
+      const input = document.getElementById('search-input');
+      const filter = input.value.toLowerCase();
+      const grid = document.getElementById('mb-grid');
+      const cards = grid.getElementsByClassName('mb-card');
+
+      for (let i = 0; i < cards.length; i++) {
+        const name = cards[i].getAttribute('data-name');
+        if (name.includes(filter)) {
+          cards[i].style.display = "";
+        } else {
+          cards[i].style.display = "none";
+        }
+      }
+    }
+  </script>
+</body>
+</html>

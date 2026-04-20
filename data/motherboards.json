@@ -1,0 +1,63 @@
+[
+  {
+    "id": "asus-rog-strix-b650e-f",
+    "name": "ASUS ROG STRIX B650E-F GAMING WIFI",
+    "chipset": "B650E",
+    "slots": [
+      { "id": "pci_1", "name": "PCIEX16_1", "type": "PCIe 5.0 x16", "source": "CPU" },
+      { "id": "pci_2", "name": "PCIEX16_2", "type": "PCIe 4.0 x4", "source": "Chipset" }
+    ],
+    "storage": [
+      { "id": "m2_1", "name": "M.2_1", "type": "PCIe 5.0 x4", "source": "CPU" },
+      { "id": "m2_2", "name": "M.2_2", "type": "PCIe 4.0 x4", "source": "CPU" },
+      { "id": "m2_3", "name": "M.2_3", "type": "PCIe 4.0 x4", "source": "Chipset" }
+    ],
+    "sharingRules": [
+      {
+        "trigger": "m2_3",
+        "impact": "pci_2",
+        "effect": "disabled",
+        "description": "M.2_3 슬롯을 사용하면 하단의 PCIEX16_2 슬롯이 비활성화됩니다."
+      }
+    ]
+  },
+  {
+    "id": "msi-mag-b650-tomahawk",
+    "name": "MSI MAG B650 TOMAHAWK WIFI",
+    "chipset": "B650",
+    "slots": [
+      { "id": "pci_1", "name": "PCI_E1", "type": "PCIe 4.0 x16", "source": "CPU" },
+      { "id": "pci_2", "name": "PCI_E2", "type": "PCIe 4.0 x4", "source": "Chipset" }
+    ],
+    "storage": [
+      { "id": "m2_1", "name": "M.2_1", "type": "PCIe 4.0 x4", "source": "CPU" },
+      { "id": "m2_2", "name": "M.2_2", "type": "PCIe 4.0 x4", "source": "CPU" },
+      { "id": "m2_3", "name": "M.2_3", "type": "PCIe 4.0 x4", "source": "Chipset" }
+    ],
+    "sharingRules": [
+      {
+        "trigger": "m2_3",
+        "impact": "pci_2",
+        "effect": "reduced",
+        "newSpeed": "PCIe 4.0 x2",
+        "description": "M.2_3와 PCI_E2를 동시에 사용하면 두 슬롯 모두 x2 배속으로 작동합니다."
+      }
+    ]
+  },
+  {
+    "id": "asrock-b650-livemixer",
+    "name": "ASRock B650 LiveMixer",
+    "chipset": "B650",
+    "slots": [
+      { "id": "pci_1", "name": "PCIE1", "type": "PCIe 4.0 x16", "source": "CPU" },
+      { "id": "pci_2", "name": "PCIE2", "type": "PCIe 4.0 x4", "source": "Chipset" },
+      { "id": "pci_3", "name": "PCIE3", "type": "PCIe 4.0 x1", "source": "Chipset" }
+    ],
+    "storage": [
+      { "id": "m2_1", "name": "M2_1", "type": "PCIe 5.0 x4", "source": "CPU" },
+      { "id": "m2_2", "name": "M2_2", "type": "PCIe 4.0 x4", "source": "CPU" },
+      { "id": "m2_3", "name": "M2_3", "type": "PCIe 4.0 x4", "source": "Chipset" }
+    ],
+    "sharingRules": []
+  }
+]

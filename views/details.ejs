@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= board.name %> - PCIe Details</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← 목록으로 돌아가기</a>
+    <header style="text-align: left; margin-bottom: 2rem;">
+      <span class="chipset-badge"><%= board.chipset %></span>
+      <h1><%= board.name %></h1>
+      <p class="subtitle">슬롯을 클릭하여 공유 내역을 확인하세요.</p>
+    </header>
+
+    <div class="details-layout">
+      <!-- PCIe Slots -->
+      <section>
+        <h3>PCIe Expansion Slots</h3>
+        <div id="pcie-slots">
+          <% board.slots.forEach(slot => { %>
+            <div class="slot-item" id="<%= slot.id %>">
+              <span class="slot-source"><%= slot.source %></span>
+              <span class="slot-name"><%= slot.name %></span>
+              <span class="slot-type"><%= slot.type %></span>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+
+      <!-- M.2 Slots -->
+      <section>
+        <h3>M.2 Storage Slots</h3>
+        <div id="m2-slots">
+          <% board.storage.forEach(m2 => { %>
+            <div class="slot-item" id="<%= m2.id %>" onclick="toggleM2('<%= m2.id %>')">
+              <span class="slot-source"><%= m2.source %></span>
+              <span class="slot-name"><%= m2.name %></span>
+              <span class="slot-type"><%= m2.type %></span>
+            </div>
+          <% }) %>
+        </div>
+        <div id="conflict-info" class="conflict-desc"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const rules = <%- JSON.stringify(board.sharingRules) %>;
+    const initialSlotInfo = {};
+
+    // Store initial state
+    document.querySelectorAll('.slot-item').forEach(el => {
+      initialSlotInfo[el.id] = {
+        name: el.querySelector('.slot-name').innerText,
+        type: el.querySelector('.slot-type').innerText
+      };
+    });
+
+    function toggleM2(m2Id) {
+      // Reset states
+      document.querySelectorAll('.slot-item').forEach(el => {
+        el.classList.remove('active', 'disabled-slot', 'warning-slot');
+        const info = initialSlotInfo[el.id];
+        if (info) {
+          el.querySelector('.slot-name').innerText = info.name;
+          el.querySelector('.slot-type').innerText = info.type;
+        }
+      });
+      const infoBox = document.getElementById('conflict-info');
+      infoBox.style.display = 'none';
+      infoBox.innerText = '';
+
+      // Set active
+      const activeM2 = document.getElementById(m2Id);
+      activeM2.classList.add('active');
+
+      // Check rules
+      const activeRules = rules.filter(r => r.trigger === m2Id);
+      
+      if (activeRules.length > 0) {
+        infoBox.style.display = 'block';
+        activeRules.forEach(rule => {
+          const target = document.getElementById(rule.impact);
+          if (target) {
+            if (rule.effect === 'disabled') {
+              target.classList.add('disabled-slot');
+              target.querySelector('.slot-name').innerText += " (비활성화됨)";
+            } else if (rule.effect === 'reduced') {
+              target.classList.add('warning-slot');
+              target.querySelector('.slot-type').innerText = `속도 저하: ${rule.newSpeed}`;
+            }
+          }
+          infoBox.innerText += rule.description + "\n";
+        });
+      } else {
+        infoBox.style.display = 'block';
+        infoBox.innerText = "이 슬롯은 다른 PCIe 슬롯과 대역폭을 공유하지 않습니다.";
+      }
+    }
+  </script>
+</body>
+</html>
