@@ -14,7 +14,18 @@ app.set('views', path.join(__dirname, 'views'));
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
+// API Routes
+app.get('/api/motherboards', (req, res) => {
+  res.json(mbData);
+});
+
+app.get('/api/motherboards/:id', (req, res) => {
+  const board = mbData.find(b => b.id === req.params.id);
+  if (!board) return res.status(404).json({ error: 'Board not found' });
+  res.json(board);
+});
+
+// View Routes
 app.get('/', (req, res) => {
   res.render('index', { boards: mbData });
 });

@@ -3,16 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= board.name %> - PCIe Details</title>
+  <title>PCIe Details</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <div class="container">
     <a href="/" class="back-link">← 목록으로 돌아가기</a>
-    <header style="text-align: left; margin-bottom: 2rem;">
-      <span class="chipset-badge"><%= board.chipset %></span>
-      <h1><%= board.name %></h1>
-      <p class="subtitle">슬롯을 클릭하여 공유 내역을 확인하세요.</p>
+    <header id="board-header" style="text-align: left; margin-bottom: 2rem;">
+      <!-- 헤더 정보 로드 중... -->
     </header>
 
     <div class="details-layout">
@@ -20,13 +18,7 @@
       <section>
         <h3>PCIe Expansion Slots</h3>
         <div id="pcie-slots">
-          <% board.slots.forEach(slot => { %>
-            <div class="slot-item" id="<%= slot.id %>">
-              <span class="slot-source"><%= slot.source %></span>
-              <span class="slot-name"><%= slot.name %></span>
-              <span class="slot-type"><%= slot.type %></span>
-            </div>
-          <% }) %>
+          <!-- 로딩 중... -->
         </div>
       </section>
 
@@ -34,13 +26,7 @@
       <section>
         <h3>M.2 Storage Slots</h3>
         <div id="m2-slots">
-          <% board.storage.forEach(m2 => { %>
-            <div class="slot-item" id="<%= m2.id %>" onclick="toggleM2('<%= m2.id %>')">
-              <span class="slot-source"><%= m2.source %></span>
-              <span class="slot-name"><%= m2.name %></span>
-              <span class="slot-type"><%= m2.type %></span>
-            </div>
-          <% }) %>
+          <!-- 로딩 중... -->
         </div>
         <div id="conflict-info" class="conflict-desc"></div>
       </section>
@@ -48,19 +34,66 @@
   </div>
 
   <script>
-    const rules = <%- JSON.stringify(board.sharingRules) %>;
+    let boardData = null;
     const initialSlotInfo = {};
 
-    // Store initial state
-    document.querySelectorAll('.slot-item').forEach(el => {
-      initialSlotInfo[el.id] = {
-        name: el.querySelector('.slot-name').innerText,
-        type: el.querySelector('.slot-type').innerText
-      };
-    });
+    async function loadDetails() {
+      const id = window.location.pathname.split('/').pop();
+      try {
+        const response = await fetch(`/api/motherboards/${id}`);
+        if (!response.ok) throw new Error('Board not found');
+        boardData = await response.json();
+        
+        renderHeader(boardData);
+        renderSlots(boardData);
+      } catch (error) {
+        console.error('Failed to load details:', error);
+        document.body.innerHTML = '<div class="container"><h1>오류</h1><p>데이터를 찾을 수 없습니다.</p><a href="/">홈으로 돌아가기</a></div>';
+      }
+    }
+
+    function renderHeader(board) {
+      document.title = `${board.name} - PCIe Details`;
+      const header = document.getElementById('board-header');
+      header.innerHTML = `
+        <span class="chipset-badge">${board.chipset}</span>
+        <h1>${board.name}</h1>
+        <p class="subtitle">슬롯을 클릭하여 공유 내역을 확인하세요.</p>
+      `;
+    }
+
+    function renderSlots(board) {
+      const pcieContainer = document.getElementById('pcie-slots');
+      pcieContainer.innerHTML = board.slots.map(slot => `
+        <div class="slot-item" id="${slot.id}">
+          <span class="slot-source">${slot.source}</span>
+          <span class="slot-name">${slot.name}</span>
+          <span class="slot-type">${slot.type}</span>
+        </div>
+      `).join('');
+
+      const m2Container = document.getElementById('m2-slots');
+      m2Container.innerHTML = board.storage.map(m2 => `
+        <div class="slot-item" id="${m2.id}" onclick="toggleM2('${m2.id}')">
+          <span class="slot-source">${m2.source}</span>
+          <span class="slot-name">${m2.name}</span>
+          <span class="slot-type">${m2.type}</span>
+        </div>
+      `).join('');
+
+      // 초기 상태 저장
+      board.slots.concat(board.storage).forEach(slot => {
+        initialSlotInfo[slot.id] = {
+          name: slot.name,
+          type: slot.type
+        };
+      });
+    }
 
     function toggleM2(m2Id) {
-      // Reset states
+      if (!boardData) return;
+
+      // 모든 슬롯 초기화
       document.querySelectorAll('.slot-item').forEach(el => {
         el.classList.remove('active', 'disabled-slot', 'warning-slot');
         const info = initialSlotInfo[el.id];
@@ -69,16 +102,17 @@
           el.querySelector('.slot-type').innerText = info.type;
         }
       });
+
       const infoBox = document.getElementById('conflict-info');
       infoBox.style.display = 'none';
       infoBox.innerText = '';
 
-      // Set active
+      // 선택된 M.2 활성화
       const activeM2 = document.getElementById(m2Id);
       activeM2.classList.add('active');
 
-      // Check rules
-      const activeRules = rules.filter(r => r.trigger === m2Id);
+      // 공유 규칙 확인
+      const activeRules = boardData.sharingRules.filter(r => r.trigger === m2Id);
       
       if (activeRules.length > 0) {
         infoBox.style.display = 'block';
@@ -100,6 +134,9 @@
         infoBox.innerText = "이 슬롯은 다른 PCIe 슬롯과 대역폭을 공유하지 않습니다.";
       }
     }
+
+    // 데이터 로드 시작
+    loadDetails();
   </script>
 </body>
 </html>

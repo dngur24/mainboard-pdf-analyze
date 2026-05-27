@@ -18,32 +18,47 @@
     </div>
 
     <div class="mb-grid" id="mb-grid">
-      <% boards.forEach(board => { %>
-        <a href="/motherboard/<%= board.id %>" class="mb-card" data-name="<%= board.name.toLowerCase() %>">
-          <span class="chipset-badge"><%= board.chipset %></span>
-          <h2><%= board.name %></h2>
-          <p class="subtitle"><%= board.slots.length %> PCIe Slots / <%= board.storage.length %> M.2 Slots</p>
-        </a>
-      <% }) %>
+      <!-- 데이터를 로드 중입니다... -->
     </div>
   </div>
 
   <script>
-    function filterBoards() {
-      const input = document.getElementById('search-input');
-      const filter = input.value.toLowerCase();
-      const grid = document.getElementById('mb-grid');
-      const cards = grid.getElementsByClassName('mb-card');
+    let allBoards = [];
 
-      for (let i = 0; i < cards.length; i++) {
-        const name = cards[i].getAttribute('data-name');
-        if (name.includes(filter)) {
-          cards[i].style.display = "";
-        } else {
-          cards[i].style.display = "none";
-        }
+    // 데이터를 API에서 가져와서 화면에 그림
+    async function loadBoards() {
+      try {
+        const response = await fetch('/api/motherboards');
+        allBoards = await response.json();
+        renderBoards(allBoards);
+      } catch (error) {
+        console.error('Failed to load boards:', error);
+        document.getElementById('mb-grid').innerHTML = '<p>데이터를 불러오는 데 실패했습니다.</p>';
       }
     }
+
+    function renderBoards(boards) {
+      const grid = document.getElementById('mb-grid');
+      grid.innerHTML = boards.map(board => `
+        <a href="/motherboard/${board.id}" class="mb-card" data-name="${board.name.toLowerCase()}">
+          <span class="chipset-badge">${board.chipset}</span>
+          <h2>${board.name}</h2>
+          <p class="subtitle">${board.slots.length} PCIe Slots / ${board.storage.length} M.2 Slots</p>
+        </a>
+      `).join('');
+    }
+
+    function filterBoards() {
+      const filter = document.getElementById('search-input').value.toLowerCase();
+      const filtered = allBoards.filter(board => 
+        board.name.toLowerCase().includes(filter) || 
+        board.chipset.toLowerCase().includes(filter)
+      );
+      renderBoards(filtered);
+    }
+
+    // 초기 로드
+    loadBoards();
   </script>
 </body>
 </html>
