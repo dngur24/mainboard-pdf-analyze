@@ -31,6 +31,27 @@
         <div id="conflict-info" class="conflict-desc"></div>
       </section>
     </div>
+
+    <!-- Block Diagram Section -->
+    <section class="diagram-section" style="margin-top: 2rem;">
+      <h3>System Lane Flow (Block Diagram)</h3>
+      <div class="diagram-wrapper">
+        <!-- CPU Group -->
+        <div class="diagram-group" id="cpu-group">
+          <div class="diagram-node cpu">CPU</div>
+          <div class="diagram-row" id="cpu-slots-diagram"></div>
+        </div>
+        
+        <!-- Connection to Chipset -->
+        <div style="width: 2px; height: 30px; background: var(--border-color);"></div>
+
+        <!-- Chipset Group -->
+        <div class="diagram-group" id="chipset-group">
+          <div class="diagram-node chipset">Chipset</div>
+          <div class="diagram-row" id="chipset-slots-diagram"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -46,6 +67,7 @@
         
         renderHeader(boardData);
         renderSlots(boardData);
+        renderDiagram(boardData);
       } catch (error) {
         console.error('Failed to load details:', error);
         document.body.innerHTML = '<div class="container"><h1>오류</h1><p>데이터를 찾을 수 없습니다.</p><a href="/">홈으로 돌아가기</a></div>';
@@ -90,16 +112,37 @@
       });
     }
 
+    function renderDiagram(board) {
+      const cpuDiagram = document.getElementById('cpu-slots-diagram');
+      const chipsetDiagram = document.getElementById('chipset-slots-diagram');
+
+      const allItems = board.slots.concat(board.storage);
+      
+      cpuDiagram.innerHTML = allItems
+        .filter(item => item.source === 'CPU')
+        .map(item => `<div class="diagram-slot" id="diag-${item.id}">${item.name}</div>`)
+        .join('');
+
+      chipsetDiagram.innerHTML = allItems
+        .filter(item => item.source === 'Chipset')
+        .map(item => `<div class="diagram-slot" id="diag-${item.id}">${item.name}</div>`)
+        .join('');
+    }
+
     function toggleM2(m2Id) {
       if (!boardData) return;
 
-      // 모든 슬롯 초기화
-      document.querySelectorAll('.slot-item').forEach(el => {
-        el.classList.remove('active', 'disabled-slot', 'warning-slot');
-        const info = initialSlotInfo[el.id];
-        if (info) {
-          el.querySelector('.slot-name').innerText = info.name;
-          el.querySelector('.slot-type').innerText = info.type;
+      // 모든 슬롯 및 다이어그램 초기화
+      document.querySelectorAll('.slot-item, .diagram-slot').forEach(el => {
+        el.classList.remove('active', 'disabled-slot', 'warning-slot', 'disabled', 'warning');
+        
+        // 슬롯 텍스트 복구 (상세 리스트만)
+        if (el.classList.contains('slot-item')) {
+          const info = initialSlotInfo[el.id];
+          if (info) {
+            el.querySelector('.slot-name').innerText = info.name;
+            el.querySelector('.slot-type').innerText = info.type;
+          }
         }
       });
 
@@ -109,7 +152,9 @@
 
       // 선택된 M.2 활성화
       const activeM2 = document.getElementById(m2Id);
-      activeM2.classList.add('active');
+      const activeDiagM2 = document.getElementById(`diag-${m2Id}`);
+      if (activeM2) activeM2.classList.add('active');
+      if (activeDiagM2) activeDiagM2.classList.add('active');
 
       // 공유 규칙 확인
       const activeRules = boardData.sharingRules.filter(r => r.trigger === m2Id);
@@ -118,13 +163,17 @@
         infoBox.style.display = 'block';
         activeRules.forEach(rule => {
           const target = document.getElementById(rule.impact);
+          const diagTarget = document.getElementById(`diag-${rule.impact}`);
+          
           if (target) {
             if (rule.effect === 'disabled') {
               target.classList.add('disabled-slot');
               target.querySelector('.slot-name').innerText += " (비활성화됨)";
+              if (diagTarget) diagTarget.classList.add('disabled');
             } else if (rule.effect === 'reduced') {
               target.classList.add('warning-slot');
               target.querySelector('.slot-type').innerText = `속도 저하: ${rule.newSpeed}`;
+              if (diagTarget) diagTarget.classList.add('warning');
             }
           }
           infoBox.innerText += rule.description + "\n";

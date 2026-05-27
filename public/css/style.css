@@ -193,3 +193,94 @@ h3 {
   border-radius: 0.25rem;
   display: none;
 }
+
+/* Block Diagram Visualization */
+.diagram-section {
+  grid-column: 1 / -1;
+  margin-bottom: 2rem;
+}
+
+.diagram-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  padding: 3rem;
+  background-color: #0c0c0e;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  position: relative;
+  overflow-x: auto;
+}
+
+.diagram-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.diagram-node {
+  padding: 1rem 2.5rem;
+  background-color: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.diagram-node.cpu {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.diagram-node.chipset {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.diagram-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+.diagram-slot {
+  padding: 0.6rem 1rem;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 100px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.diagram-slot.active {
+  border-color: var(--accent-color);
+  background-color: rgba(59, 130, 246, 0.1);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.diagram-slot.disabled {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.diagram-slot.warning {
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+  background-color: rgba(245, 158, 11, 0.1);
+}
