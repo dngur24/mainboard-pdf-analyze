@@ -5,11 +5,16 @@
 ## Installation
 
 ### Environment
-Ubuntu 24.04
-python 3.12 (anaconda)
-Nvidia driver 595.
-Cuda Version : 12.9
-Cudnn Version : 9.19
+- Ubuntu 24.04
+- python 3.12 (anaconda)
+- Nvidia driver 595.
+- Cuda Version : 12.9
+- Cudnn Version : 9.19  
+  
+- CPU : 9600X
+- VGA : 5060ti 16GB
+
+---
 
 ### First. 
 ```bash
@@ -48,7 +53,7 @@ python3 vllm_test_gpu.py
 
 ```bash
 python3 vllm/vllm-pre-vlm.py
-# use demo for b850 tomahwak max wifi manual
+# use demo for b850 tomahawk max wifi manual
 
 python3 vllm/vllm-vlm.py
 
