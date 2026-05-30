@@ -1,4 +1,15 @@
-*.md
+# plan
+pcie*.md
+midterm_*.md
+
+# node.js
+project_plan*.md
 package-lock.json
 node_modules/
 package.json
+
+# vllm
+temp_images/
+manual_layout.txt
+
+*.pdf

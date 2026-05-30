@@ -1,0 +1,15 @@
+# VLLM
+vllm
+
+# RAG
+langchain 
+langchain-community 
+langchain-chroma 
+sentence-transformers 
+pypdf
+
+# Vision Language Model
+pdf2image 
+pillow
+
+# sudo apt-get install poppler-utils  # 리눅스 환경에서 pdf2image 구동을 위해 필수
