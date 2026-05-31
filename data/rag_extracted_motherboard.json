@@ -1,0 +1,60 @@
+{
+  "id": "msi-mag-b850-tomahawk-max-wifi",
+  "name": "MAG B850 TOMAHAWK MAX WIFI",
+  "chipset": "B850",
+  "slots": [
+    {
+      "id": "pci_e1",
+      "name": "PCI_E1 Slot (CPU)",
+      "type": "PCIe 5.0 x16",
+      "source": "CPU"
+    },
+    {
+      "id": "pci_e2",
+      "name": "PCI_E2 Slot (B850 Chipset)",
+      "type": "PCIe 3.0 x1",
+      "source": "Chipset"
+    },
+    {
+      "id": "pci_e3",
+      "name": "PCI_E3 Slot (B850 Chipset)",
+      "type": "PCIe 4.0 x4",
+      "source": "Chipset"
+    }
+  ],
+  "storage": [
+    {
+      "id": "m2_1",
+      "name": "M2_1 Slot (CPU)",
+      "type": "PCIe 3.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_2",
+      "name": "M2_2 Slot (CPU)",
+      "type": "PCIe 3.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_3",
+      "name": "M2_3 Slot (Chipset)",
+      "type": "PCIe 3.0 x4",
+      "source": "Chipset"
+    },
+    {
+      "id": "m2_4",
+      "name": "M2_4 Slot (Chipset)",
+      "type": "PCIe 3.0 x4",
+      "source": "Chipset"
+    }
+  ],
+  "sharingRules": [
+    {
+      "trigger": "m2_3",
+      "impact": "pci_e3",
+      "effect": "reduced",
+      "newSpeed": "x2",
+      "description": "M2_3 슬롯을 사용하면 PCI_E3 슬롯이 x2 배속으로 작동합니다."
+    }
+  ]
+}

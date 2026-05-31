@@ -3,9 +3,32 @@ const app = express();
 const fs = require('fs');
 const path = require('path');
 
-// Load data
-const dataPath = path.join(__dirname, 'data', 'motherboards.json');
-const mbData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+// Load data from all JSON files in the data directory
+const dataDir = path.join(__dirname, 'data');
+function loadAllMotherboards() {
+  let allBoards = [];
+  const files = fs.readdirSync(dataDir);
+  
+  files.forEach(file => {
+    if (file.endsWith('.json')) {
+      try {
+        const filePath = path.join(dataDir, file);
+        const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        
+        if (Array.isArray(content)) {
+          allBoards = allBoards.concat(content);
+        } else if (typeof content === 'object' && content !== null) {
+          allBoards.push(content);
+        }
+      } catch (err) {
+        console.error(`Error parsing ${file}:`, err);
+      }
+    }
+  });
+  return allBoards;
+}
+
+let mbData = loadAllMotherboards();
 
 // Set EJS as view engine
 app.set('view engine', 'ejs');

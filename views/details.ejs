@@ -86,15 +86,22 @@
 
     function renderSlots(board) {
       const pcieContainer = document.getElementById('pcie-slots');
-      pcieContainer.innerHTML = board.slots.map(slot => `
-        <div class="slot-item" id="${slot.id}">
+      const m2Container = document.getElementById('m2-slots');
+      
+      // slots 필드에서 PCIe만 필터링 (type에 PCIe 포함되거나 storage와 중복되지 않는 것)
+      const pcieSlots = board.slots.filter(s => 
+        s.type.toLowerCase().includes('pcie') && 
+        !board.storage.some(m => m.id === s.id)
+      );
+
+      pcieContainer.innerHTML = pcieSlots.map(slot => `
+        <div class="slot-item" id="${slot.id}" onclick="toggleM2('${slot.id}')">
           <span class="slot-source">${slot.source}</span>
           <span class="slot-name">${slot.name}</span>
           <span class="slot-type">${slot.type}</span>
         </div>
       `).join('');
 
-      const m2Container = document.getElementById('m2-slots');
       m2Container.innerHTML = board.storage.map(m2 => `
         <div class="slot-item" id="${m2.id}" onclick="toggleM2('${m2.id}')">
           <span class="slot-source">${m2.source}</span>
@@ -103,8 +110,9 @@
         </div>
       `).join('');
 
-      // 초기 상태 저장
-      board.slots.concat(board.storage).forEach(slot => {
+      // 초기 상태 저장 (모든 가용 슬롯 합본)
+      const allItems = [...new Map(board.slots.concat(board.storage).map(item => [item.id, item])).values()];
+      allItems.forEach(slot => {
         initialSlotInfo[slot.id] = {
           name: slot.name,
           type: slot.type
@@ -116,21 +124,25 @@
       const cpuDiagram = document.getElementById('cpu-slots-diagram');
       const chipsetDiagram = document.getElementById('chipset-slots-diagram');
 
-      const allItems = board.slots.concat(board.storage);
+      // 중복 제거된 유니크 슬롯 리스트
+      const allItems = [...new Map(board.slots.concat(board.storage).map(item => [item.id, item])).values()];
       
       cpuDiagram.innerHTML = allItems
-        .filter(item => item.source === 'CPU')
+        .filter(item => item.source.toLowerCase().includes('cpu') || item.source.toLowerCase().includes('processor'))
         .map(item => `<div class="diagram-slot" id="diag-${item.id}">${item.name}</div>`)
         .join('');
 
       chipsetDiagram.innerHTML = allItems
-        .filter(item => item.source === 'Chipset')
+        .filter(item => item.source.toLowerCase().includes('chipset'))
         .map(item => `<div class="diagram-slot" id="diag-${item.id}">${item.name}</div>`)
         .join('');
     }
 
     function toggleM2(m2Id) {
       if (!boardData) return;
+
+      const clickedSlot = boardData.slots.concat(boardData.storage).find(s => s.id === m2Id);
+      if (!clickedSlot) return;
 
       // 모든 슬롯 및 다이어그램 초기화
       document.querySelectorAll('.slot-item, .diagram-slot').forEach(el => {
@@ -141,7 +153,8 @@
           const info = initialSlotInfo[el.id];
           if (info) {
             el.querySelector('.slot-name').innerText = info.name;
-            el.querySelector('.slot-type').innerText = info.type;
+            const typeEl = el.querySelector('.slot-type');
+            if (typeEl) typeEl.innerText = info.type;
           }
         }
       });
@@ -150,30 +163,40 @@
       infoBox.style.display = 'none';
       infoBox.innerText = '';
 
-      // 선택된 M.2 활성화
-      const activeM2 = document.getElementById(m2Id);
-      const activeDiagM2 = document.getElementById(`diag-${m2Id}`);
-      if (activeM2) activeM2.classList.add('active');
-      if (activeDiagM2) activeDiagM2.classList.add('active');
+      // 선택된 슬롯 활성화
+      const activeSlot = document.getElementById(m2Id);
+      const activeDiagSlot = document.getElementById(`diag-${m2Id}`);
+      if (activeSlot) activeSlot.classList.add('active');
+      if (activeDiagSlot) activeDiagSlot.classList.add('active');
 
-      // 공유 규칙 확인
-      const activeRules = boardData.sharingRules.filter(r => r.trigger === m2Id);
+      // 공유 규칙 확인 (ID 또는 Name으로 매칭)
+      const activeRules = boardData.sharingRules.filter(r => 
+        r.trigger === m2Id || r.trigger === clickedSlot.name
+      );
       
       if (activeRules.length > 0) {
         infoBox.style.display = 'block';
         activeRules.forEach(rule => {
-          const target = document.getElementById(rule.impact);
-          const diagTarget = document.getElementById(`diag-${rule.impact}`);
-          
-          if (target) {
-            if (rule.effect === 'disabled') {
-              target.classList.add('disabled-slot');
-              target.querySelector('.slot-name').innerText += " (비활성화됨)";
-              if (diagTarget) diagTarget.classList.add('disabled');
-            } else if (rule.effect === 'reduced') {
-              target.classList.add('warning-slot');
-              target.querySelector('.slot-type').innerText = `속도 저하: ${rule.newSpeed}`;
-              if (diagTarget) diagTarget.classList.add('warning');
+          // Impact 대상 찾기 (ID 또는 Name으로)
+          const targetSlot = boardData.slots.concat(boardData.storage).find(s => 
+            s.id === rule.impact || s.name === rule.impact
+          );
+
+          if (targetSlot) {
+            const targetEl = document.getElementById(targetSlot.id);
+            const diagTargetEl = document.getElementById(`diag-${targetSlot.id}`);
+            
+            if (targetEl) {
+              if (rule.effect.toLowerCase().includes('disabled')) {
+                targetEl.classList.add('disabled-slot');
+                targetEl.querySelector('.slot-name').innerText += " (비활성화됨)";
+                if (diagTargetEl) diagTargetEl.classList.add('disabled');
+              } else if (rule.effect.toLowerCase().includes('reduced') || rule.newSpeed) {
+                targetEl.classList.add('warning-slot');
+                const typeEl = targetEl.querySelector('.slot-type');
+                if (typeEl) typeEl.innerText = `속도 저하: ${rule.newSpeed || '제한됨'}`;
+                if (diagTargetEl) diagTargetEl.classList.add('warning');
+              }
             }
           }
           infoBox.innerText += rule.description + "\n";
