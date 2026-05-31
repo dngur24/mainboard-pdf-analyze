@@ -22,15 +22,16 @@ def convert_pdf_to_images(pdf_path, output_folder="./temp_images", dpi=130):
     return image_paths
 
 def main():
-    pdf_path = "mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf"
+    # pdf_path = "mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf"
+    pdf_path = "mb_manual/MAGB850TOMAHAWKMAXWIFI_Korean.pdf"
     output_txt_path = "./manual_layout.txt"
     
     print("1. [VLM] PDF를 이미지로 변환 중...")
-    # image_paths = convert_pdf_to_images(pdf_path)
+    image_paths = convert_pdf_to_images(pdf_path)
     
     # image_paths = [f"./temp_images/page_{i}.png" for i in range(10)]  # 테스트용으로 10페이지만 처리 (실제 사용 시에는 전체 페이지로 변경)
-    image_paths = [f"./temp_images/page_{i}.png" for i in range(17, 21)]  # 테스트용으로 10페이지만 처리 (실제 사용 시에는 전체 페이지로 변경)
-    
+    # image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)]  # 테스트용으로 10페이지만 처리 (실제 사용 시에는 전체 페이지로 변경)
+    image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)] + ["./temp_images/page_60.png"]
 
     print("2. [VLM] Qwen2-VL-7B-AWQ 모델 로드 중...")
     vlm_model = "Qwen/Qwen2-VL-7B-Instruct-AWQ"
@@ -38,8 +39,8 @@ def main():
     # Qwen2-VL의 이미지 픽셀 제한 및 VRAM 방어 설정
     llm = LLM(
         model=vlm_model,
-        quantization="awq",
-        gpu_memory_utilization=0.85,
+        quantization="awq_marlin",
+        gpu_memory_utilization=0.9,
         max_model_len=2048,
         trust_remote_code=True,
         # 이미지 글씨가 깨지지 않도록 최대 픽셀 제한을 넉넉하게 설정 (기본값으로 두거나 아래처럼 인자 추가 가능)
@@ -59,7 +60,7 @@ def main():
             "<|image_pad|>\n"
             "이 메인보드 매뉴얼 페이지에 있는 모든 텍스트, 표(Table), 조립 다이어그램 그림을 하나도 빠짐없이 "
             "대학원생 수준으로 아주 상세하게 기술 문서 형태로 받아적고 설명해줘. "
-            "특히 M.2 슬롯 번호와 PCIe 레인 배정 정보는 절대 누락하면 안 돼.<|im_end|>\n"
+            "특히 메인보드의 확장 슬롯, M.2 슬롯 번호와 PCIe 레인 배정 정보는 절대 누락하면 안 돼.<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
         

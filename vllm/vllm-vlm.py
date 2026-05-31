@@ -1,10 +1,12 @@
 import os
 import multiprocessing
+import json
+import re
 
 # 환경 변수 고정 (안정적인 v0 백엔드 및 가속 설정)
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-os.environ["VLLM_USE_V1"] = "0"
-os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
+# os.environ["VLLM_USE_V1"] = "0"
+# os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
 
 from vllm import LLM, SamplingParams
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -39,11 +41,13 @@ def main():
 
     llm = LLM(
         model=model_name,
-        quantization="awq",
-        gpu_memory_utilization=0.75,   
-        max_model_len=4096,            
+        # quantization="awq",
+        quantization="awq_marlin",
+        gpu_memory_utilization=0.80,   
+        max_model_len=8192,            
         trust_remote_code=True
     )
+
     tokenizer = llm.get_tokenizer()
 
     # 3. 질문 수행
@@ -78,6 +82,103 @@ def main():
         print(f"\n[질문]: {user_questions[i]}")
         print(f"[RAG 답변]:\n{output.outputs[0].text.strip()}")
         print("=" * 60)
+
+    # 5. JSON 추출 (추가된 기능)
+    print("\n5. [JSON] 메인보드 사양 정보 추출 시작...")
+    
+    # 정보 수집을 위한 다양한 검색 쿼리
+    extraction_queries = [
+        "메인보드 모델명과 칩셋 정보",
+        "PCIe 슬롯 목록 및 배속 정보 (Gen, x16, x8, x4 등)",
+        "M.2 슬롯 및 SATA 포트 구성 정보",
+        "슬롯 간 대역폭 공유(Sharing) 및 비활성화(Disabled) 규칙"
+    ]
+    
+    extraction_context_docs = []
+    for q in extraction_queries:
+        # 토큰 절약을 위해 k=2로 하향 조정
+        extraction_context_docs.extend(retriever.invoke(q, k=2))
+    
+    # 중복 제거 (내용 기준)
+    unique_contents = []
+    seen = set()
+    for doc in extraction_context_docs:
+        if doc.page_content not in seen:
+            unique_contents.append(doc.page_content)
+            seen.add(doc.page_content)
+    
+    extraction_context = "\n\n".join(unique_contents)
+    print(f"추출용 컨텍스트 크기: {len(extraction_context)}자")
+    
+    json_extraction_prompt = f"""당신은 메인보드 사양 분석 전문가입니다. 
+제공된 [매뉴얼 내용]을 바탕으로 메인보드의 사양 정보를 아래 JSON 형식에 맞춰 추출하세요.
+
+[매뉴얼 내용]:
+{extraction_context}
+
+[JSON 형식 지침]
+반드시 아래 키와 구조를 정확히 준수하는 하나의 JSON 객체만 출력하세요.
+
+- id: 모델명을 기반으로 한 소문자/하이픈 형식의 ID (예: "msi-mag-b850-tomahawk-max-wifi")
+- name: 공식 제품 명칭 (예: "MAG B850 TOMAHAWK MAX WIFI")
+- chipset: 메인보드 칩셋 명칭 (예: "B850")
+- slots: PCIe 슬롯 리스트. 각 항목은 다음을 포함해야 합니다:
+    * id: 소문자 및 언더바 조합 (예: "pci_e1", "pci_e2")
+    * name: 공식 슬롯 명칭 (예: "PCI_E1 Slot (CPU)", "PCI_E2 Slot (Chipset)")
+    * type: PCIe 버전 및 배속 (예: "PCIe 5.0 x16", "PCIe 4.0 x1")
+    * source: 데이터 대역폭 공급처 (영문 대문자로 "CPU" 또는 "Chipset" 중 하나만 사용)
+- storage: M.2 슬롯 리스트. 각 항목은 다음을 포함해야 합니다:
+    * id: 소문자 및 언더바 조합 (예: "m2_1", "m2_2")
+    * name: 공식 슬롯 명칭 (예: "M2_1 Slot (CPU)", "M2_3 Slot (Chipset)")
+    * type: PCIe 버전 및 배속 (예: "PCIe 5.0 x4", "PCIe 4.0 x4")
+    * source: 데이터 대역폭 공급처 (영문 대문자로 "CPU" 또는 "Chipset" 중 하나만 사용)
+- sharingRules: 슬롯 간 대역폭 공유 및 비활성화 규칙 리스트 (공유 규칙이 없다면 빈 배열 [] 출력). 각 항목은 다음을 포함해야 합니다:
+    * trigger: 원인이 되는 슬롯의 id (예: "m2_3")
+    * impact: 영향을 받는 슬롯의 id (예: "pci_e3")
+    * effect: 영향 종류 ("reduced" 또는 "disabled")
+    * newSpeed: 변경되는 속도 (예: "x2", 속도 저하시에만 포함)
+    * description: 규칙에 대한 한글 설명 (예: "M2_3 슬롯을 사용하면 PCI_E3 슬롯이 x2 배속으로 작동합니다.")
+
+[응답 가이드]
+- 설명, 인사말, 주석을 절대 포함하지 마세요.
+- 마크다운 코드 블록(```json ... ```) 형식을 사용해도 좋습니다. (로직에서 자동 제거함)
+- 오직 유효한 JSON 객체만 출력하세요.
+
+"""
+# - 마크다운 코드 블록(```json ... ```)을 사용해도 좋습니다.
+    
+    json_chat = [{"role": "user", "content": json_extraction_prompt}]
+    json_formatted_prompt = tokenizer.apply_chat_template(json_chat, tokenize=False, add_generation_prompt=True)
+    
+    # JSON 생성을 위해 max_tokens를 넉넉하게 설정
+    json_sampling_params = SamplingParams(temperature=0.0, max_tokens=2048)
+    json_output = llm.generate([json_formatted_prompt], json_sampling_params)
+    
+    raw_json_text = json_output[0].outputs[0].text.strip()
+    
+    # 마크다운 태그 제거 로직 (더 견고하게 수정)
+    clean_json_text = raw_json_text
+    # ```json 또는 ``` 로 시작하는 경우 제거
+    clean_json_text = re.sub(r'^```(?:json)?\s*', '', clean_json_text)
+    # ``` 로 끝나는 경우 제거
+    clean_json_text = re.sub(r'\s*```$', '', clean_json_text)
+    # 혹시 모를 앞뒤 공백 제거
+    clean_json_text = clean_json_text.strip()
+        
+    try:
+        parsed_json = json.loads(clean_json_text)
+        output_json_path = "data/rag_extracted_motherboard.json"
+        
+        # data 폴더가 없으면 생성
+        os.makedirs(os.path.dirname(output_json_path), exist_ok=True)
+        
+        with open(output_json_path, "w", encoding="utf-8") as f:
+            json.dump(parsed_json, f, ensure_ascii=False, indent=2)
+        
+        print(f"\n🎉 JSON 추출 완료! 결과가 {output_json_path}에 저장되었습니다.")
+    except json.JSONDecodeError as e:
+        print(f"\n❌ JSON 파싱 오류 발생: {e}")
+        print("Raw output:", raw_json_text)
 
 if __name__ == '__main__':
     try:
