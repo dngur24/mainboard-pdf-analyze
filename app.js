@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const chokidar = require('chokidar');
 const app = express();
 const fs = require('fs');
 const path = require('path');
@@ -12,24 +13,19 @@ app.use(express.json());
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB Atlas');
-    migrateData();
+    syncData();
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Data Migration from JSON to MongoDB
+// Sync Data from JSON to MongoDB (Upsert)
 const dataDir = path.join(__dirname, 'data');
-async function migrateData() {
+async function syncData() {
   try {
-    const count = await Motherboard.countDocuments();
-    if (count > 0) {
-      console.log('Database already has data. Skipping migration.');
-      return;
-    }
-
-    console.log('Starting data migration from JSON files...');
+    console.log('🔄 Checking for data synchronization...');
     const files = fs.readdirSync(dataDir);
     let allBoards = [];
 
+    // 1. 모든 JSON 파일 읽기
     files.forEach(file => {
       if (file.endsWith('.json')) {
         try {
@@ -41,21 +37,72 @@ async function migrateData() {
             allBoards.push(content);
           }
         } catch (err) {
-          console.error(`Error parsing ${file}:`, err);
+          console.error(`❌ Error parsing ${file}:`, err);
         }
       }
     });
 
-    if (allBoards.length > 0) {
-      // Remove duplicates by ID before inserting
-      const uniqueBoards = Array.from(new Map(allBoards.map(item => [item.id, item])).values());
-      await Motherboard.insertMany(uniqueBoards);
-      console.log(`Successfully migrated ${uniqueBoards.length} boards to MongoDB.`);
+    if (allBoards.length === 0) {
+      console.log('ℹ️ No local JSON data found to sync.');
+      return;
+    }
+
+    // 2. 중복 ID 제거 (로컬 파일 간 중복 방지)
+    const uniqueBoards = Array.from(new Map(allBoards.map(item => [item.id, item])).values());
+    console.log(`🔍 Unique boards to sync: ${uniqueBoards.length} (${uniqueBoards.map(b => b.id).join(', ')})`);
+
+    // 3. 각 보드별로 Upsert 수행
+    let updateCount = 0;
+    let insertCount = 0;
+
+    for (const board of uniqueBoards) {
+      if (!board.id) {
+        console.warn('⚠️ Skipping board with no ID:', board.name);
+        continue;
+      }
+
+      const result = await Motherboard.findOneAndUpdate(
+        { id: board.id },
+        board,
+        { upsert: true, returnDocument: 'after', includeResultMetadata: true }
+      );
+
+      if (result.lastErrorObject && result.lastErrorObject.updatedExisting) {
+        updateCount++;
+        console.log(`  - [Update] ${board.id}`);
+      } else {
+        insertCount++;
+        console.log(`  - [Insert] ${board.id}`);
+      }
+    }
+
+    if (insertCount > 0 || updateCount > 0) {
+      console.log(`✅ Sync complete: ${insertCount} new boards added, ${updateCount} existing boards updated.`);
+    } else {
+      console.log('✅ Database is already up to date.');
     }
   } catch (err) {
-    console.error('Migration error:', err);
+    console.error('❌ Sync error:', err);
   }
 }
+
+// Watch for file changes in data directory
+const watcher = chokidar.watch(dataDir, {
+  ignored: /(^|[\/\\])\../, // ignore dotfiles
+  persistent: true
+});
+
+watcher.on('change', (filePath) => {
+  if (filePath.endsWith('.json')) {
+    console.log(`📝 File ${path.basename(filePath)} changed. Auto-syncing...`);
+    syncData();
+  }
+}).on('add', (filePath) => {
+  if (filePath.endsWith('.json')) {
+    console.log(`➕ New file ${path.basename(filePath)} detected. Auto-syncing...`);
+    syncData();
+  }
+});
 
 // Set EJS as view engine
 app.set('view engine', 'ejs');

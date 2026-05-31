@@ -40,7 +40,7 @@
     function renderBoards(boards) {
       const grid = document.getElementById('mb-grid');
       grid.innerHTML = boards.map(board => `
-        <a href="/motherboard/${board.id}" class="mb-card" data-name="${board.name.toLowerCase()}">
+        <a href="/motherboard/${encodeURIComponent(board.id)}" class="mb-card" data-name="${board.name.toLowerCase()}">
           <span class="chipset-badge">${board.chipset}</span>
           <h2>${board.name}</h2>
           <p class="subtitle">${board.slots.length} PCIe Slots / ${board.storage.length} M.2 Slots</p>

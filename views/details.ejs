@@ -61,7 +61,7 @@
     async function loadDetails() {
       const id = window.location.pathname.split('/').pop();
       try {
-        const response = await fetch(`/api/motherboards/${id}`);
+        const response = await fetch(`/api/motherboards/${encodeURIComponent(decodeURIComponent(id))}`);
         if (!response.ok) throw new Error('Board not found');
         boardData = await response.json();
         

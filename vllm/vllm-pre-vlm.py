@@ -22,8 +22,8 @@ def convert_pdf_to_images(pdf_path, output_folder="./temp_images", dpi=130):
     return image_paths
 
 def main():
-    # pdf_path = "mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf"
-    pdf_path = "mb_manual/MAGB850TOMAHAWKMAXWIFI_Korean.pdf"
+    pdf_path = "mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf"
+    # pdf_path = "mb_manual/MAGB850TOMAHAWKMAXWIFI_Korean.pdf"
     output_txt_path = "./manual_layout.txt"
     
     print("1. [VLM] PDF를 이미지로 변환 중...")
@@ -31,8 +31,9 @@ def main():
     
     # image_paths = [f"./temp_images/page_{i}.png" for i in range(10)]  # 테스트용으로 10페이지만 처리 (실제 사용 시에는 전체 페이지로 변경)
     # image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)]  # 테스트용으로 10페이지만 처리 (실제 사용 시에는 전체 페이지로 변경)
-    image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)] + ["./temp_images/page_60.png"]
-
+    # image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)] + ["./temp_images/page_60.png"] # tomahawk 매뉴얼의 17~20페이지 + 61페이지 (M.2 슬롯 정보가 담긴 페이지) 테스트용으로 추가
+    image_paths = [f"./temp_images/page_{i}.png" for i in range(16, 20)] + ["./temp_images/page_64.png"] # mortar 매뉴얼의 17~20페이지 + 65페이지 (M.2 슬롯 정보가 담긴 페이지) 테스트용으로 추가
+ 
     print("2. [VLM] Qwen2-VL-7B-AWQ 모델 로드 중...")
     vlm_model = "Qwen/Qwen2-VL-7B-Instruct-AWQ"
     

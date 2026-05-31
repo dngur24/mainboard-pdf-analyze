@@ -15,7 +15,12 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 def main():
+    # 분석 대상 메인보드 매뉴얼 파일명 (확장자 제외)
+    # vllm-pre-vlm.py에서 사용한 파일명과 동일하게 설정하세요.
     print("1. [RAG] VLM이 분석한 텍스트 파일 로드 중...")
+    manual_name = "MAG_B850M_MORTAR_MAX_WIFI_Korean"
+    
+    print(f"1. [RAG] VLM이 분석한 텍스트 파일({manual_name}) 로드 중...")
     txt_path = "./manual_layout.txt"
     
     if not os.path.exists(txt_path):
@@ -53,7 +58,6 @@ def main():
     # 3. 질문 수행
     user_questions = [
         "M.2 1번 슬롯의 상세 스펙과 CPU 직결 여부를 알려줘.",
-        "DDR5 램을 2개만 꽂을 때 추천하는 슬롯 위치는 어디야?"
     ]
 
     prompts = []
@@ -89,9 +93,9 @@ def main():
     # 정보 수집을 위한 다양한 검색 쿼리
     extraction_queries = [
         "메인보드 모델명과 칩셋 정보",
-        "PCIe 슬롯 목록 및 배속 정보 (Gen, x16, x8, x4 등)",
-        "M.2 슬롯 및 SATA 포트 구성 정보",
-        "슬롯 간 대역폭 공유(Sharing) 및 비활성화(Disabled) 규칙"
+        "PCIe 확장 슬롯 목록 및 배속 정보 (Gen, x16, x8, x4 등)",
+        "M.2 NVMe 슬롯 구성 정보",
+        "PCIe 슬롯과 M.2 슬롯 간의 대역폭 공유(Sharing) 및 비활성화(Disabled) 규칙"
     ]
     
     extraction_context_docs = []
@@ -110,6 +114,10 @@ def main():
     extraction_context = "\n\n".join(unique_contents)
     print(f"추출용 컨텍스트 크기: {len(extraction_context)}자")
     
+    # ID 정제 로직: Korean/English 제거 및 언더바(_)를 공백( )으로 변환
+    clean_name = re.sub(r'(_?Korean|_?English)$', '', manual_name, flags=re.IGNORECASE)
+    final_id = clean_name.replace('_', ' ')
+
     json_extraction_prompt = f"""당신은 메인보드 사양 분석 전문가입니다. 
 제공된 [매뉴얼 내용]을 바탕으로 메인보드의 사양 정보를 아래 JSON 형식에 맞춰 추출하세요.
 
@@ -119,30 +127,32 @@ def main():
 [JSON 형식 지침]
 반드시 아래 키와 구조를 정확히 준수하는 하나의 JSON 객체만 출력하세요.
 
-- id: 모델명을 기반으로 한 소문자/하이픈 형식의 ID (예: "msi-mag-b850-tomahawk-max-wifi")
-- name: 공식 제품 명칭 (예: "MAG B850 TOMAHAWK MAX WIFI")
+- id: 반드시 "{final_id}"를 사용하세요.
+- name: 공식 제품 명칭 (예: "{final_id}")
 - chipset: 메인보드 칩셋 명칭 (예: "B850")
-- slots: PCIe 슬롯 리스트. 각 항목은 다음을 포함해야 합니다:
-    * id: 소문자 및 언더바 조합 (예: "pci_e1", "pci_e2")
-    * name: 공식 슬롯 명칭 (예: "PCI_E1 Slot (CPU)", "PCI_E2 Slot (Chipset)")
-    * type: PCIe 버전 및 배속 (예: "PCIe 5.0 x16", "PCIe 4.0 x1")
-    * source: 데이터 대역폭 공급처 (영문 대문자로 "CPU" 또는 "Chipset" 중 하나만 사용)
-- storage: M.2 슬롯 리스트. 각 항목은 다음을 포함해야 합니다:
-    * id: 소문자 및 언더바 조합 (예: "m2_1", "m2_2")
-    * name: 공식 슬롯 명칭 (예: "M2_1 Slot (CPU)", "M2_3 Slot (Chipset)")
-    * type: PCIe 버전 및 배속 (예: "PCIe 5.0 x4", "PCIe 4.0 x4")
-    * source: 데이터 대역폭 공급처 (영문 대문자로 "CPU" 또는 "Chipset" 중 하나만 사용)
-- sharingRules: 슬롯 간 대역폭 공유 및 비활성화 규칙 리스트 (공유 규칙이 없다면 빈 배열 [] 출력). 각 항목은 다음을 포함해야 합니다:
-    * trigger: 원인이 되는 슬롯의 id (예: "m2_3")
-    * impact: 영향을 받는 슬롯의 id (예: "pci_e3")
-    * effect: 영향 종류 ("reduced" 또는 "disabled")
-    * newSpeed: 변경되는 속도 (예: "x2", 속도 저하시에만 포함)
-    * description: 규칙에 대한 한글 설명 (예: "M2_3 슬롯을 사용하면 PCI_E3 슬롯이 x2 배속으로 작동합니다.")
+- slots: PCIe 확장 슬롯(Expansion Slots) 리스트. **M.2 슬롯은 여기에 포함하지 마세요.** 각 항목은 반드시 다음 필드를 포함해야 합니다:
+    * "id": 소문자/언더바 형식 (예: "pci_e1")
+    * "name": 공식 명칭 (예: "PCI_E1 Slot")
+    * "type": 버전 및 배속 (예: "PCIe 5.0 x16")
+    * "source": "CPU" 또는 "Chipset"
+- storage: M.2 NVMe 저장장치 슬롯 리스트. **PCIe 확장 슬롯은 여기에 포함하지 마세요.** 각 항목은 반드시 다음 필드를 포함해야 합니다:
+    * "id": 소문자/언더바 형식 (예: "m2_1")
+    * "name": 공식 명칭 (예: "M2_1 Slot")
+    * "type": 버전 및 배속 (예: "PCIe 5.0 x4")
+    * "source": "CPU" 또는 "Chipset"
+- sharingRules: 슬롯 간 대역폭 공유 규칙 리스트. 각 항목은 반드시 다음 필드를 포함해야 합니다:
+    * "trigger": 원인이 되는 슬롯의 id (예: "m2_3")
+    * "impact": 영향을 받는 슬롯의 id (예: "pci_e3")
+    * "effect": "disabled" 또는 "reduced"
+    * "newSpeed": (선택사항) 변경된 배속 (예: "x2")
+    * "description": 규칙에 대한 상세 설명 (한글)
 
 [응답 가이드]
-- 설명, 인사말, 주석을 절대 포함하지 마세요.
-- 마크다운 코드 블록(```json ... ```) 형식을 사용해도 좋습니다. (로직에서 자동 제거함)
+- **중요:** SATA 포트, USB 헤더, 팬 커넥터 등 PCIe/M.2와 무관한 장치는 **절대로 포함하지 마세요.**
+- **절대로** 위 스키마를 벗어나는 다른 필드명(예: slot1, slot2, lanes 등)을 사용하지 마세요.
+- 매뉴얼에 명시된 실제 슬롯과 규칙만 정확히 추출하세요.
 - 오직 유효한 JSON 객체만 출력하세요.
+
 
 """
 # - 마크다운 코드 블록(```json ... ```)을 사용해도 좋습니다.
@@ -150,24 +160,38 @@ def main():
     json_chat = [{"role": "user", "content": json_extraction_prompt}]
     json_formatted_prompt = tokenizer.apply_chat_template(json_chat, tokenize=False, add_generation_prompt=True)
     
-    # JSON 생성을 위해 max_tokens를 넉넉하게 설정
-    json_sampling_params = SamplingParams(temperature=0.0, max_tokens=2048)
+    # JSON 생성을 위해 max_tokens를 넉넉하게 설정 (중복 생성 방지를 위해 temperature 0 유지)
+    json_sampling_params = SamplingParams(temperature=0.0, max_tokens=3072)
     json_output = llm.generate([json_formatted_prompt], json_sampling_params)
     
     raw_json_text = json_output[0].outputs[0].text.strip()
     
-    # 마크다운 태그 제거 로직 (더 견고하게 수정)
+    # 마크다운 태그 및 추가 텍스트 제거 로직 (더 견고하게 수정)
     clean_json_text = raw_json_text
-    # ```json 또는 ``` 로 시작하는 경우 제거
+    # 1. 마크다운 코드 블록 제거
     clean_json_text = re.sub(r'^```(?:json)?\s*', '', clean_json_text)
-    # ``` 로 끝나는 경우 제거
     clean_json_text = re.sub(r'\s*```$', '', clean_json_text)
-    # 혹시 모를 앞뒤 공백 제거
+    
+    # 2. JSON 객체 부분만 추출 (가장 바깥쪽 { } 찾기)
+    # LLM이 JSON 뒤에 설명을 덧붙이는 경우(Extra data 오류)를 방지
+    try:
+        start_idx = clean_json_text.find('{')
+        end_idx = clean_json_text.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            clean_json_text = clean_json_text[start_idx:end_idx+1]
+    except Exception:
+        pass
+
     clean_json_text = clean_json_text.strip()
         
     try:
         parsed_json = json.loads(clean_json_text)
-        output_json_path = "data/rag_extracted_motherboard.json"
+        
+        # ID 강제 재확인 및 덮어쓰기 (AI 실수를 방지하는 2중 장치)
+        parsed_json['id'] = final_id
+        
+        # 파일명도 정제된 이름을 사용
+        output_json_path = f"data/{clean_name}.json"
         
         # data 폴더가 없으면 생성
         os.makedirs(os.path.dirname(output_json_path), exist_ok=True)

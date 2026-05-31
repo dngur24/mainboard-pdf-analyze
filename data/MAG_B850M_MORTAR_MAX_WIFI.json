@@ -1,0 +1,119 @@
+{
+  "id": "MAG B850M MORTAR MAX WIFI",
+  "name": "MAG B850M MORTAR MAX WIFI",
+  "chipset": "B850",
+  "slots": [
+    {
+      "id": "pci_e1",
+      "name": "PCI_E1 Slot",
+      "type": "PCIe 5.0 x16",
+      "source": "CPU"
+    },
+    {
+      "id": "usb3_2_gen2_10gbps",
+      "name": "USB3.2 Gen2 10Gbps",
+      "type": "USB3.2 Gen2 10Gbps",
+      "source": "Chipset"
+    },
+    {
+      "id": "usb3_2_gen1_5gbps",
+      "name": "USB3.2 Gen1 5Gbps",
+      "type": "USB3.2 Gen1 5Gbps",
+      "source": "Chipset"
+    },
+    {
+      "id": "sata_a1_a2",
+      "name": "SATA_A1/A2",
+      "type": "SATA 6Gb/s",
+      "source": "Chipset"
+    },
+    {
+      "id": "m2_1",
+      "name": "M2_1 Slot",
+      "type": "PCIe 5.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_2",
+      "name": "M2_2 Slot",
+      "type": "PCIe 5.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_3",
+      "name": "M2_3 Slot",
+      "type": "PCIe 4.0 x4",
+      "source": "B850 Chipset"
+    },
+    {
+      "id": "m2_4",
+      "name": "M2_4 Slot",
+      "type": "PCIe 4.0 x4",
+      "source": "B850 Chipset"
+    }
+  ],
+  "storage": [
+    {
+      "id": "m2_1",
+      "name": "M2_1 Slot",
+      "type": "PCIe 5.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_2",
+      "name": "M2_2 Slot",
+      "type": "PCIe 5.0 x4",
+      "source": "CPU"
+    },
+    {
+      "id": "m2_3",
+      "name": "M2_3 Slot",
+      "type": "PCIe 4.0 x4",
+      "source": "B850 Chipset"
+    },
+    {
+      "id": "m2_4",
+      "name": "M2_4 Slot",
+      "type": "PCIe 4.0 x4",
+      "source": "B850 Chipset"
+    }
+  ],
+  "sharingRules": [
+    {
+      "trigger": "m2_3",
+      "impact": "pci_e1",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_3 slot disables PCIe 5.0 x16 PCI_E1 slot"
+    },
+    {
+      "trigger": "m2_3",
+      "impact": "pci_e3",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_3 slot disables PCIe 5.0 x8 PCI_E3 slot"
+    },
+    {
+      "trigger": "m2_3",
+      "impact": "pci_e4",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_3 slot disables PCIe 5.0 x4 PCI_E4 slot"
+    },
+    {
+      "trigger": "m2_4",
+      "impact": "pci_e1",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_4 slot disables PCIe 5.0 x16 PCI_E1 slot"
+    },
+    {
+      "trigger": "m2_4",
+      "impact": "pci_e3",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_4 slot disables PCIe 5.0 x8 PCI_E3 slot"
+    },
+    {
+      "trigger": "m2_4",
+      "impact": "pci_e4",
+      "effect": "disabled",
+      "description": "PCIe 4.0 x4 M.2_4 slot disables PCIe 5.0 x4 PCI_E4 slot"
+    }
+  ]
+}
