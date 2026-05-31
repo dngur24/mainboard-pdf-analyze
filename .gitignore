@@ -13,3 +13,5 @@ temp_images/
 manual_layout.txt
 
 *.pdf
+
+.env
