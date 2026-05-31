@@ -1,20 +1,21 @@
 # 1. Base image
-FROM node:20-slim
+# slim 버전에서 빌드 도구 부족으로 인한 오류를 방지하기 위해 전체 이미지를 사용합니다.
+FROM node:20
 
 # 2. Set working directory
 WORKDIR /app
 
 # 3. Copy package files and install dependencies
-# 패키지 파일을 먼저 복사하여 캐시 효율을 높입니다.
 COPY package*.json ./
-RUN npm install --production
+
+# npm install 시 발생할 수 있는 메모리/네트워크 문제를 방지하기 위해 
+# 몇 가지 최적화 옵션을 추가하거나 캐시를 정리합니다.
+RUN npm install --production && npm cache clean --force
 
 # 4. Copy project files
-# .dockerignore에 정의된 파일을 제외한 모든 파일을 복사합니다.
 COPY . .
 
 # 5. Environment variables
-# 런타임에 .env 파일이나 컨테이너 설정으로 주입받아야 합니다.
 ENV PORT=3000
 ENV NODE_ENV=production
 
