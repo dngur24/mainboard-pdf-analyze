@@ -46,10 +46,10 @@ def pdf_analyze(pdf_path, llm_model):
 
     # 2. 메인 vLLM 모델 로드 (여기서 원래 쓰시던 12.5GB 소모)
     print("2. [RAG] 메인 Qwen2.5 추론 모델 로드 중...")
-    model_name = "Qwen/Qwen2.5-7B-Instruct-AWQ"
+    llm_model = "Qwen/Qwen2.5-7B-Instruct-AWQ"
 
     llm = LLM(
-        model=model_name,
+        model=llm_model,
         # quantization="awq",
         quantization="awq_marlin",
         gpu_memory_utilization=0.80,   
