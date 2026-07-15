@@ -1,65 +1,62 @@
 import os
-import multiprocessing
 import json
 import re
 
-# 환경 변수 고정 (안정적인 v0 백엔드 및 가속 설정)
+# 환경 변수 고정
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# os.environ["VLLM_USE_V1"] = "0"
-# os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
 
 from vllm import LLM, SamplingParams
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_core.documents import Document
 
-def pdf_analyze(pdf_path, llm_model):
+
+def pdf_analyze(pdf_path: str, llm_params: dict):
     """
-    vlm으로 분석된 텍스트를 통해 rag를 실행, 구동하는 함수.
-    
+    VLM이 생성한 텍스트 파일을 바탕으로 RAG를 실행하고 메인보드 JSON을 추출하는 함수.
+
     Args:
-        pdf_path (_type_): pdf 파일 경로
-        llm_model (_type_): LLM 모델 이름
+        pdf_path (str): 원본 PDF 파일 경로 (출력 JSON 파일명 결정에 사용).
+        llm_params (dict): config_loader.load_rag_config() 가 반환한
+                           vLLM LLM() 초기화 파라미터 딕셔너리.
+                           예) {
+                                 "model": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+                                 "quantization": "awq_marlin",
+                                 "gpu_memory_utilization": 0.85,
+                                 "max_model_len": 8192,
+                                 "trust_remote_code": True
+                               }
     """
-    pdf_path = pdf_path.strip()  # 공백 제거
+    pdf_path = pdf_path.strip()
 
+    # ── 1. VLM 전처리 결과 텍스트 로드 ──────────────────────────────────────
     print(f"1. [RAG] VLM이 분석한 텍스트 파일({pdf_path}) 로드 중...")
     txt_path = "./manual_layout.txt"
-    
+
     if not os.path.exists(txt_path):
         raise FileNotFoundError("⚠️ 1단계 전처리 파일(manual_layout.txt)이 없습니다. 1단계를 먼저 실행하세요.")
-        
+
     with open(txt_path, "r", encoding="utf-8") as f:
         full_text = f.read()
-    
-    # 페이지 단위 구분을 보존하며 청크 분할
+
+    # ── 2. 청크 분할 & 벡터 DB ────────────────────────────────────────────
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
     splits = text_splitter.create_documents([full_text])
     print(f"총 {len(splits)}개의 의미론적 문서 조각으로 분할되었습니다.")
 
-    # 임베딩 및 벡터 DB 구축
     embeddings = HuggingFaceEmbeddings(model_name="jhgan/ko-sroberta-multitask")
     vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 4}) # 정보 밀도가 높으므로 k=4로 상향
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     print("벡터 데이터베이스 구축 완료!")
 
-    # 2. 메인 vLLM 모델 로드 (여기서 원래 쓰시던 12.5GB 소모)
-    print("2. [RAG] 메인 Qwen2.5 추론 모델 로드 중...")
-    llm_model = "Qwen/Qwen2.5-7B-Instruct-AWQ"
+    # ── 3. LLM 로드 (config 에서 읽은 파라미터 사용) ──────────────────────
+    model_name = llm_params.get("model", "알 수 없는 모델")
+    print(f"2. [RAG] 추론 모델 로드 중... ({model_name})")
 
-    llm = LLM(
-        model=llm_model,
-        # quantization="awq",
-        quantization="awq_marlin",
-        gpu_memory_utilization=0.80,   
-        max_model_len=8192,            
-        trust_remote_code=True
-    )
-
+    llm = LLM(**llm_params)
     tokenizer = llm.get_tokenizer()
 
-    # 3. 질문 수행
+    # ── 4. RAG Q&A ────────────────────────────────────────────────────────
     user_questions = [
         "M.2 1번 슬롯의 상세 스펙과 CPU 직결 여부를 알려줘.",
     ]
@@ -68,7 +65,7 @@ def pdf_analyze(pdf_path, llm_model):
     for question in user_questions:
         relevant_docs = retriever.invoke(question)
         context = "\n\n".join([doc.page_content for doc in relevant_docs])
-        
+
         rag_prompt = f"""당신은 메인보드 기술 지원 전문가입니다. 
 제공된 [매뉴얼 내용]은 그림과 표가 모두 텍스트로 치환된 결과물입니다. 이에 기반하여 질문에 정확히 답하세요.
 
@@ -82,8 +79,7 @@ def pdf_analyze(pdf_path, llm_model):
         formatted_prompt = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
         prompts.append(formatted_prompt)
 
-    # 4. 결과 출력
-    sampling_params = SamplingParams(temperature=0.0, max_tokens=512) 
+    sampling_params = SamplingParams(temperature=0.0, max_tokens=512)
     outputs = llm.generate(prompts, sampling_params)
 
     for i, output in enumerate(outputs):
@@ -91,35 +87,34 @@ def pdf_analyze(pdf_path, llm_model):
         print(f"[RAG 답변]:\n{output.outputs[0].text.strip()}")
         print("=" * 60)
 
-    # 5. JSON 추출 (추가된 기능)
+    # ── 5. JSON 추출 ──────────────────────────────────────────────────────
     print("\n5. [JSON] 메인보드 사양 정보 추출 시작...")
-    
-    # 정보 수집을 위한 다양한 검색 쿼리
+
     extraction_queries = [
         "메인보드 모델명과 칩셋 정보",
         "PCIe 확장 슬롯 목록 및 배속 정보 (Gen, x16, x8, x4 등)",
         "M.2 NVMe 슬롯 구성 정보",
         "PCIe 슬롯과 M.2 슬롯 간의 대역폭 공유(Sharing) 및 비활성화(Disabled) 규칙"
     ]
-    
+
     extraction_context_docs = []
     for q in extraction_queries:
-        # 토큰 절약을 위해 k=2로 하향 조정
         extraction_context_docs.extend(retriever.invoke(q, k=2))
-    
-    # 중복 제거 (내용 기준)
+
+    # 중복 제거
     unique_contents = []
     seen = set()
     for doc in extraction_context_docs:
         if doc.page_content not in seen:
             unique_contents.append(doc.page_content)
             seen.add(doc.page_content)
-    
+
     extraction_context = "\n\n".join(unique_contents)
     print(f"추출용 컨텍스트 크기: {len(extraction_context)}자")
-    
-    # ID 정제 로직: Korean/English 제거 및 언더바(_)를 공백( )으로 변환
-    clean_name = re.sub(r'(_?Korean|_?English)$', '', pdf_path, flags=re.IGNORECASE)
+
+    # ID 정제: Korean/English 접미사 제거, 언더바→공백
+    base_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    clean_name = re.sub(r'(_?Korean|_?English)$', '', base_name, flags=re.IGNORECASE)
     final_id = clean_name.replace('_', ' ')
 
     json_extraction_prompt = f"""당신은 메인보드 사양 분석 전문가입니다. 
@@ -157,27 +152,21 @@ def pdf_analyze(pdf_path, llm_model):
 - 매뉴얼에 명시된 실제 슬롯과 규칙만 정확히 추출하세요.
 - 오직 유효한 JSON 객체만 출력하세요.
 
-
 """
-# - 마크다운 코드 블록(```json ... ```)을 사용해도 좋습니다.
-    
+
     json_chat = [{"role": "user", "content": json_extraction_prompt}]
     json_formatted_prompt = tokenizer.apply_chat_template(json_chat, tokenize=False, add_generation_prompt=True)
-    
-    # JSON 생성을 위해 max_tokens를 넉넉하게 설정 (중복 생성 방지를 위해 temperature 0 유지)
+
     json_sampling_params = SamplingParams(temperature=0.0, max_tokens=3072)
     json_output = llm.generate([json_formatted_prompt], json_sampling_params)
-    
+
     raw_json_text = json_output[0].outputs[0].text.strip()
-    
-    # 마크다운 태그 및 추가 텍스트 제거 로직 (더 견고하게 수정)
-    clean_json_text = raw_json_text
-    # 1. 마크다운 코드 블록 제거
-    clean_json_text = re.sub(r'^```(?:json)?\s*', '', clean_json_text)
+
+    # 마크다운 코드 블록 제거
+    clean_json_text = re.sub(r'^```(?:json)?\s*', '', raw_json_text)
     clean_json_text = re.sub(r'\s*```$', '', clean_json_text)
-    
-    # 2. JSON 객체 부분만 추출 (가장 바깥쪽 { } 찾기)
-    # LLM이 JSON 뒤에 설명을 덧붙이는 경우(Extra data 오류)를 방지
+
+    # 가장 바깥쪽 { } 추출
     try:
         start_idx = clean_json_text.find('{')
         end_idx = clean_json_text.rfind('}')
@@ -187,22 +176,17 @@ def pdf_analyze(pdf_path, llm_model):
         pass
 
     clean_json_text = clean_json_text.strip()
-        
+
     try:
         parsed_json = json.loads(clean_json_text)
-        
-        # ID 강제 재확인 및 덮어쓰기 (AI 실수를 방지하는 2중 장치)
-        parsed_json['id'] = final_id
-        
-        # 파일명도 정제된 이름을 사용
+        parsed_json['id'] = final_id  # AI 실수 방지 강제 재확인
+
         output_json_path = f"data/{clean_name}.json"
-        
-        # data 폴더가 없으면 생성
         os.makedirs(os.path.dirname(output_json_path), exist_ok=True)
-        
+
         with open(output_json_path, "w", encoding="utf-8") as f:
             json.dump(parsed_json, f, ensure_ascii=False, indent=2)
-        
+
         print(f"\n🎉 JSON 추출 완료! 결과가 {output_json_path}에 저장되었습니다.")
     except json.JSONDecodeError as e:
         print(f"\n❌ JSON 파싱 오류 발생: {e}")

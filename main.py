@@ -1,45 +1,101 @@
-import configparser
+"""
+main.py
+-------
+메인보드 PDF 분석 파이프라인의 진입점.
+
+사용법:
+    # YAML 파일명으로 모델 지정 (확장자 생략 가능)
+    python main.py --vlm_config Qwen2-VL-7B --rag_config Qwen2.5-7B \\
+                   --pdf_path mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf
+
+    # 사용 가능한 config 목록 확인
+    python main.py --list_configs
+"""
+
 import argparse
-import os 
 import multiprocessing
-import re
+import os
 import torch
-import json
 
+import lib.vlm as vlm
 import lib.analyze as analyze
-import lib.vlm  as vlm
-
-config = configparser.ConfigParser()
-
-config.read('config/config.yaml')
+from lib.config_loader import load_vlm_config, load_rag_config, list_available_configs
 
 
-config.get()
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="메인보드 PDF 분석 파이프라인 (config 파일로 모델 선택)"
+    )
+
+    parser.add_argument(
+        "--vlm_config",
+        default="Qwen2-VL-7B",
+        help=(
+            "config/vlm-model/ 폴더 안의 YAML 파일명 (확장자 생략 가능).\n"
+            "예) --vlm_config Qwen2-VL-7B"
+        ),
+    )
+    parser.add_argument(
+        "--rag_config",
+        default="Qwen2.5-7B",
+        help=(
+            "config/rag-model/ 폴더 안의 YAML 파일명 (확장자 생략 가능).\n"
+            "예) --rag_config Qwen2.5-7B"
+        ),
+    )
+    parser.add_argument(
+        "--pdf_path",
+        default="mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf",
+        help="분석할 PDF 파일 경로",
+    )
+    parser.add_argument(
+        "--list_configs",
+        action="store_true",
+        help="사용 가능한 VLM / RAG config 목록을 출력하고 종료합니다.",
+    )
+
+    return parser.parse_args()
+
 
 def main():
+    args = parse_args()
+
+    # ── config 목록 출력 모드 ───────────────────────────────────────────────
+    if args.list_configs:
+        vlm_configs = list_available_configs("config/vlm-model")
+        rag_configs = list_available_configs("config/rag-model")
+        print("\n📂 사용 가능한 VLM config (config/vlm-model/):")
+        for name in vlm_configs:
+            print(f"   - {name}")
+        print("\n📂 사용 가능한 RAG config (config/rag-model/):")
+        for name in rag_configs:
+            print(f"   - {name}")
+        print()
+        return
+
+    # ── CUDA 확인 ──────────────────────────────────────────────────────────
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # ── PDF 경로 정규화 ────────────────────────────────────────────────────
+    pdf_path = args.pdf_path.strip()
+    if not pdf_path.startswith("mb_manual/"):
+        pdf_path = "mb_manual/" + pdf_path
+
+    # ── config 로드 ────────────────────────────────────────────────────────
+    vlm_params = load_vlm_config(args.vlm_config)
+    rag_params = load_rag_config(args.rag_config)
+
+    # ── Step 1: PDF → 텍스트 (VLM) ────────────────────────────────────────
+    vlm.pdf_analyze(pdf_path, vlm_params)
+
+    # ── Step 2: 텍스트 → RAG → JSON (LLM) ────────────────────────────────
+    analyze.pdf_analyze(pdf_path, rag_params)
+
+
+if __name__ == "__main__":
     try:
-        multiprocessing.set_start_method('spawn')
-
-        parser = argparse.ArgumentParser(description='vllm 모델 선택')
-        parser.add_argument('--vlm_model', default='Qwen/Qwen2-VL-7B-Instruct-AWQ',
-                            help='전처리에 사용할 모델 이름')
-        parser.add_argument('--llm_model', default='Qwen/Qwen2.5-7B-Instruct-AWQ',
-                            help='분석에 사용할 모델 이름')
-        parser.add_argument('--pdf_path', default='mb_manual/MAG_B850M_MORTAR_MAX_WIFI_Korean.pdf',
-                            help='분석할 PDF 파일 경로')
-        
-        args = parser.parse_args()
-
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
-
-        # PDF를 이미지로 변환하고 VLM 모델을 사용하여 텍스트로 변환
-        pdf_path = args.pdf_path.strip()  # 공백 제거
-        pdf_path = 'mb_manual/' + pdf_path if not pdf_path.startswith('mb_manual/') else pdf_path
-        
-        vlm.pdf_analyze(pdf_path, args.vlm_model)
-
-        analyze.pdf_analyze()
-
+        multiprocessing.set_start_method("spawn")
     except RuntimeError:
-        pass    
+        pass
+    main()

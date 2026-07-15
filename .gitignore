@@ -13,3 +13,6 @@ manual_layout.txt
 *.pdf
 
 .env
+
+.vscode
+1.txt
