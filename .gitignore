@@ -16,3 +16,5 @@ manual_layout.txt
 
 .vscode
 1.txt
+
+__pycache__/

@@ -19,7 +19,7 @@ import torch
 
 import lib.vlm as vlm
 import lib.analyze as analyze
-from lib.config_loader import load_vlm_config, load_rag_config, list_available_configs
+from lib.config_loader import load_model_config, list_available_configs
 
 
 def parse_args():
@@ -83,14 +83,14 @@ def main():
         pdf_path = "mb_manual/" + pdf_path
 
     # ── config 로드 ────────────────────────────────────────────────────────
-    vlm_params = load_vlm_config(args.vlm_config)
-    rag_params = load_rag_config(args.rag_config)
+    vlm_params = load_model_config(args.vlm_config, "config/vlm-model")
+    rag_params = load_model_config(args.rag_config, "config/rag-model")
 
     # ── Step 1: PDF → 텍스트 (VLM) ────────────────────────────────────────
     vlm.pdf_analyze(pdf_path, vlm_params)
 
     # ── Step 2: 텍스트 → RAG → JSON (LLM) ────────────────────────────────
-    analyze.pdf_analyze(pdf_path, rag_params)
+    analyze.text_analyze(pdf_path, rag_params)
 
 
 if __name__ == "__main__":

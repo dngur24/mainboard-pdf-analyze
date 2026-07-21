@@ -11,13 +11,13 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 
-def pdf_analyze(pdf_path: str, llm_params: dict):
+def text_analyze(pdf_path: str, llm_params: dict):
     """
     VLM이 생성한 텍스트 파일을 바탕으로 RAG를 실행하고 메인보드 JSON을 추출하는 함수.
 
     Args:
         pdf_path (str): 원본 PDF 파일 경로 (출력 JSON 파일명 결정에 사용).
-        llm_params (dict): config_loader.load_rag_config() 가 반환한
+        llm_params (dict): config_loader.load_model_config() 가 반환한
                            vLLM LLM() 초기화 파라미터 딕셔너리.
                            예) {
                                  "model": "Qwen/Qwen2.5-7B-Instruct-AWQ",

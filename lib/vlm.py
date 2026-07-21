@@ -31,7 +31,7 @@ def pdf_analyze(pdf_path: str, llm_params: dict):
 
     Args:
         pdf_path (str): PDF 파일 경로
-        llm_params (dict): config_loader.load_vlm_config() 가 반환한
+        llm_params (dict): config_loader.load_model_config() 가 반환한
                            vLLM LLM() 초기화 파라미터 딕셔너리.
                            예) {
                                  "model": "Qwen/Qwen2-VL-7B-Instruct-AWQ",

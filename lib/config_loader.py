@@ -98,37 +98,13 @@ def _resolve_yaml_path(config_dir: str, yaml_name: str) -> str:
 # Public API
 # ──────────────────────────────────────────────
 
-def load_vlm_config(yaml_name: str, config_base: str = "config/vlm-model") -> dict:
+def load_model_config(yaml_name: str, config_base: str) -> dict:
     """
-    VLM 모델 설정을 로드하여 vLLM LLM() 파라미터 딕셔너리를 반환.
+    지정된 디렉터리의 YAML 설정을 로드하여 vLLM LLM() 파라미터 딕셔너리를 반환.
 
     Args:
-        yaml_name: YAML 파일명 (확장자 생략 가능). 예) "Qwen2-VL-7B"
-        config_base: vlm-model config 디렉터리 경로 (기본: config/vlm-model)
-
-    Returns:
-        dict: vLLM LLM() 에 **kwargs 로 전달 가능한 파라미터 딕셔너리.
-              예) {"model": "...", "quantization": "awq_marlin", ...}
-
-    Raises:
-        FileNotFoundError: YAML 파일이 없을 때
-        ValueError: 필수 키가 없거나 input 섹션이 비어 있을 때
-    """
-    yaml_path = _resolve_yaml_path(config_base, yaml_name)
-    print(f"[config_loader] VLM config 로드: {yaml_path}")
-    raw = _load_yaml(yaml_path)
-    params = _extract_input_params(raw)
-    print(f"[config_loader] VLM 파라미터: {params}")
-    return params
-
-
-def load_rag_config(yaml_name: str, config_base: str = "config/rag-model") -> dict:
-    """
-    RAG(LLM) 모델 설정을 로드하여 vLLM LLM() 파라미터 딕셔너리를 반환.
-
-    Args:
-        yaml_name: YAML 파일명 (확장자 생략 가능). 예) "Qwen2.5-7B"
-        config_base: rag-model config 디렉터리 경로 (기본: config/rag-model)
+        yaml_name: YAML 파일명 (확장자 생략 가능).
+        config_base: config 디렉터리 경로. 예) "config/vlm-model" 또는 "config/rag-model"
 
     Returns:
         dict: vLLM LLM() 에 **kwargs 로 전달 가능한 파라미터 딕셔너리.
@@ -138,11 +114,12 @@ def load_rag_config(yaml_name: str, config_base: str = "config/rag-model") -> di
         ValueError: 필수 키가 없거나 input 섹션이 비어 있을 때
     """
     yaml_path = _resolve_yaml_path(config_base, yaml_name)
-    print(f"[config_loader] RAG config 로드: {yaml_path}")
+    print(f"[config_loader] config 로드: {yaml_path}")
     raw = _load_yaml(yaml_path)
     params = _extract_input_params(raw)
-    print(f"[config_loader] RAG 파라미터: {params}")
+    print(f"[config_loader] 모델 파라미터: {params}")
     return params
+
 
 
 def list_available_configs(config_base: str) -> list[str]:
